@@ -27,12 +27,19 @@ intake [-v] [-s] [-o filename] [-i value1,value2]
 Possible values for --information:
 
 general             Logs general system information from systeminfo.exe
+
 antivirus           Logs the currently registered antivirus product
+
 keys                Logs all product keys from ProduKey.exe
+
 programs            Logs all registered installed programs
+
 drivers             Logs all driver errors/warnings
+
 failedservices      Logs all services that are set to auto start but are not running
+
 startup             Logs all startup programs listed in msconfig
+
 environment         Logs all environment variables
 
 Honarable mentions to Nirsoft for ProduKey -- www.nirsoft.net
