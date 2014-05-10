@@ -23,7 +23,7 @@ Short Switch | Long Switch    | Description
 -i           | --information  | Choose what information you want to be included in the logs.
              |                | Possible choices are listed below.
 -h           | --help         | Show this help message.
----------------------------------------------------------------------------------------------
+
 
 Possible values for --information:
 
@@ -37,7 +37,6 @@ drivers            | Logs all driver errors/warnings
 failedservices     | Logs all services that are set to auto start but are not running
 startup            | Logs all startup programs listed in msconfig
 environment        | Logs all environment variables
-----------------------------------------------------------------------------------------------
 
 Honarable mentions to Nirsoft for ProduKey -- www.nirsoft.net
 
