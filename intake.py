@@ -65,10 +65,10 @@ class Main():
         
         self.time = time.asctime()
         #Use this filename when compiling
-        #filename = os.path.join(os.path.dirname(sys.executable), "Logs", "Log - %s.html" %  self.time.replace(":", "-"))
+        filename = os.path.join(os.path.dirname(sys.executable), "Logs", "Log - %s.html" %  self.time.replace(":", "-"))
         
         #Use this filename when testing/coding
-        filename = "Logs/Log - %s.html" % self.time.replace(":", "-")
+        #filename = "Logs/Log - %s.html" % self.time.replace(":", "-")
         
         self.options = {"verbose": False,
                         "output": filename,

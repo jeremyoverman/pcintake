@@ -73,7 +73,7 @@ class Log:
         
         output_file = open(output, 'w')
         
-        baked = self.mytemplate.render(customer="Jeremy", tables=self.tables)
+        baked = self.mytemplate.render(tables=self.tables)
         output_file.write(baked)
         output_file.close()
         

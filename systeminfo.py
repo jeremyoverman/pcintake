@@ -3,7 +3,7 @@ from subprocess import Popen, PIPE
 import regaccess
 
 def getSubprocess(command):
-    proc = Popen(command, stdout=PIPE, stderr=None)
+    proc = Popen(command, stdout=PIPE, stderr=None)#, creationflags=0x08000000)
     output = [''.join([x for x in y if ord(x) < 128]) for y in proc.stdout.readlines()]
     return output
 
