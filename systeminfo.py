@@ -1,50 +1,76 @@
-#-------------------------------------------------------------------------------
-# Copyright (c) 2014 Jeremy Overman.
-# All rights reserved. This program and the accompanying materials
-# are made available under the terms of the GNU Public License v2.0
-# which accompanies this distribution, and is available at
-# http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
-# 
-# Contributors:
-#     Jeremy Overman - initial API and implementation
-#-------------------------------------------------------------------------------
 import os, wmi
 from subprocess import Popen, PIPE
+import regaccess
 
-class ProductKey:
-    def __init__(self):
-        """Log all product keys from ProduKey.exe"""
-        
-        self.produkey = "ProduKey/ProduKey.exe"
-        self.switches = "/scomma \"\""
-        self.keys = self.getKeys()
-        
-    def logKeys(self, log):
-        """Log the keys."""
-        
-        log.addTitle("Product Keys")
-        for key in self.keys:
-            log.addLine("%s: %s" % (key, self.keys[key]))
-        
-    def getKeys(self):
-        """Get all keys from ProduKey.exe"""
-        
-        output = Popen(self.produkey + " " + self.switches, stdout=PIPE).stdout.read()
-        keys = {}
-        for line in output.split("\n"):
-            split = line.split(",")
-            if len(split) == 7:
-                name = split[0]
-                key = split[2]
-                keys[name] = key
-        return keys
+def getSubprocess(command):
+    proc = Popen(command, stdout=PIPE, stderr=None)
+    output = [''.join([x for x in y if ord(x) < 128]) for y in proc.stdout.readlines()]
+    return output
 
-class powerConfig:
+class ProductKeys:
+    def __init__(self, log):
+        self.log = log
+        self.log.createTable("keys", "Product Keys", "name", "key")
+        self.registry = regaccess.Registry()
+        
+    def DecodeKey(self, rpk):
+        rpkOffset = 52
+        i = 28
+        szPossibleChars = "BCDFGHJKMPQRTVWXY2346789"
+        szProductKey = ""
+        
+        while i >= 0:
+            dwAccumulator = 0
+            j = 14
+            while j >= 0:
+                dwAccumulator = dwAccumulator * 256
+                d = rpk[j+rpkOffset]
+                if isinstance(d, str):
+                    d = ord(d)
+                dwAccumulator = d + dwAccumulator
+                rpk[j+rpkOffset] = (dwAccumulator / 24) if (dwAccumulator / 24) <= 255 else 255 
+                dwAccumulator = dwAccumulator % 24
+                j = j - 1
+            i = i - 1
+            szProductKey = szPossibleChars[dwAccumulator] + szProductKey
+            
+            if ((29 - i) % 6) == 0 and i != -1:
+                i = i - 1
+                szProductKey = "-" + szProductKey
+                
+        return szProductKey
+    
+    def getInformation(self, key):
+        product_id = self.registry.getValue(key + "\\DigitalProductId")
+        try:
+            product_name = self.registry.getValue(key + "\\ProductName")
+        except WindowsError:
+            product_name = self.registry.getValue(key + "\\ProductNameNonQualified")
+        product_key = self.DecodeKey(list(product_id))
+        return (product_name, product_key)
+    
+    def logWindowsKey(self):
+        product_name, product_key = self.getInformation("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion")
+        self.log.addValueToTable("keys", product_name, product_key)
+        
+    def logOfficeKeys(self):
+        reg_keys = self.registry.searchValues("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Office", "DigitalProductID")
+        for reg_key in reg_keys:
+            product_name, product_key = self.getInformation(reg_key)
+            self.log.addValueToTable("keys", product_name, product_key)
+            
+        return (product_name, product_key)
+    
+    def logKeys(self):
+        self.logWindowsKey()
+        self.logOfficeKeys()
+
+class PowerConfig:
     def __init__(self):
         """Get all power configuration information. Not working correctly."""
         
         self.command = "powercfg"
-        self.command_output = Popen(self.command + " " + "/Q", stdout=PIPE).stdout.readlines()
+        self.command_output = getSubprocess(self.command + " " + "/Q", stdout=PIPE)
         self.options = {}
         self.current_subgroup = None
         self.current_pwroption = None
@@ -57,7 +83,7 @@ class powerConfig:
     def getCurrentPlan(self):
         """Get the name of the current power plan."""
         
-        output = Popen(self.command + " " + "/L", stdout=PIPE).stdout.readlines()
+        output = getSubprocess(self.command + " " + "/L", stdout=PIPE)
         for line in output:
             line = line.strip()
             if len(line) > 0:
@@ -164,23 +190,28 @@ class powerConfig:
                             log.addLine("    AC: %s" % (possibilities[ac]))
                             log.addLine("    DC: %s" % (possibilities[dc]))
 
+class InstalledPrograms:
+    def __init__(self, log):
+        self.log = log
+        self.log.createTable("programs", "Installed Programs", "programs")
         
-class Information:
-    def __init__(self):
-        self.c = wmi.WMI()
-        
-    def logPrograms(self, log):
+    def logPrograms(self):
         """Log all registered installed programs."""
         
-        log.addTitle("Installed Programs")
-        
         command = "wmic product get description"
-        output = Popen(command, stdout=PIPE).stdout.readlines()
+        output = getSubprocess(command)
+        
         
         for line in output:
             if line.find("Description") < 0:
-                log.addLine(line.strip())
-        
+                program = line.strip()
+                self.log.addValueToTable("programs", program)
+
+class GeneralInformation:
+    def __init__(self, log):
+        self.log = log
+        self.log.createTable("general", "General Information", "key", "value")
+    
     def parseSystemInfoCSV(self, csv):
         """Parse the CSV results from the systeminfo.exe command."""
         
@@ -198,10 +229,40 @@ class Information:
                 values.append(buff)
                 buff = ""
         return values
+
+    def getSerial(self):
+        """Get the serial number of the computer if available."""
+        
+        command = "wmic /namespace:\\\\root\\cimv2 path Win32_SystemEnclosure get SerialNumber"
+        output = getSubprocess(command)
+        
+        serial = "Not Found"
+        
+        for line in output:
+            if len(line.strip()) > 0:
+                if line.find("SerialNumber") < 0:
+                    serial = line.strip()
+        return serial
     
-    def logSystemInfo(self, log):
+            
+    def getSystemInfo(self):
+        """Get system information from systeminfo.exe."""
+        
+        command = "systeminfo /FO csv"
+        output = getSubprocess(command)
+        
+        keys = self.parseSystemInfoCSV(output[0])
+        values = self.parseSystemInfoCSV(output[1])
+        information = {}
+        
+        i = 0
+        for key in keys:
+            information[key] = values[i]
+            i += 1
+        return information
+
+    def logSystemInfo(self):
         """Log system info from systeminfo.exe."""
-        log.addTitle("General System Information")
         information = self.getSystemInfo()
         tolog = [
                  "Host Name",
@@ -215,79 +276,64 @@ class Information:
                  "BIOS Version"
                  ]
         for item in tolog:
-            log.addLine("%s: %s" % (item, information[item]))
-        log.addLine("Serial Number: " + self.getSerial())
-            
-    def getSerial(self):
-        """Get the serial number of the computer if available."""
+            self.log.addValueToTable("general", item, information[item])
+        self.log.addValueToTable("general", "Serial Number", self.getSerial())
         
-        command = "wmic /namespace:\\\\root\\cimv2 path Win32_SystemEnclosure get SerialNumber"
-        output = Popen(command, stdout=PIPE).stdout.readlines()
-        
-        serial = "Not Found"
-        
-        for line in output:
-            if len(line.strip()) > 0:
-                if line.find("SerialNumber") < 0:
-                    serial = line.strip()
-        return serial
-        
-    def logFailedServices(self, log):
+class FailedServices:
+    def __init__(self, log):
+        self.log = log
+        log.createTable("failedservices", "Failed Services", "service")
+    
+    def logFailedServices(self):
         """Log all services that were supposed to automatically start but are not running."""
         
-        log.addTitle("Failed Services")
         command = "wmic service where \"State = 'Stopped' and StartMode = 'Auto'\" get Caption"
-        output = Popen(command, stdout=PIPE).stdout.readlines()
+        output = getSubprocess(command)
         
         for line in output:
             if len(line.strip()) > 0 and line.find("Caption") < 0:
-                log.addLine(line.strip())
-        
-    def getSystemInfo(self):
-        """Get system information from systeminfo.exe."""
-        
-        command = "systeminfo /FO csv"
-        output = Popen(command, stdout=PIPE).stdout.readlines()
-        
-        keys = self.parseSystemInfoCSV(output[0])
-        values = self.parseSystemInfoCSV(output[1])
-        information = {}
-        
-        i = 0
-        for key in keys:
-            information[key] = values[i]
-            i += 1
-        return information
-        
-            
-    def logEnvironment(self, log):
+                self.log.addValueToTable("failedservices", line.strip())
+
+class Environment:
+    def __init__(self, log):
+        self.log = log
+        log.createTable("environment", "Environment Variables", "key", "value")
+    
+    def logEnvironment(self):
         """Log all environment variables."""
         
-        log.addTitle("Environment Variables")
         env = os.environ
         values = []
         for var in env:
             values.append(var)
         for var in sorted(values):
-            log.addLine("%s: %s" % (var, env[var]))
-    
-    def logStartup(self, log):
+            self.log.addValueToTable("environment", var, env[var])
+
+class Startup:
+    def __init__(self, log):
+        self.log = log
+        self.log.createTable("startup", "Startup Processes", "process")
+
+    def logStartup(self):
         """Log all startup programs that show in msconfig.exe."""
         
-        log.addTitle("Startup Processes")
         command = "WMIC startup get caption"
-        output = Popen(command, stdout=PIPE).stdout.readlines()
+        output = getSubprocess(command)
         
         for line in output:
             if line.strip() != "Caption":
-                log.addLine(line.strip())
-            
-    def logAntivirus(self, log):
+                self.log.addValueToTable("startup", line.strip())
+
+class Antivirus:
+    def __init__(self, log):
+        self.log = log
+        self.log.createTable("antivirus", "Registered Antivirus", "antivirus")
+
+    def logAntivirus(self):
         """Log the currently registered antivirus program."""
         
-        log.addTitle("Antivirus")
         command = "WMIC /Node:localhost /Namespace:\\\\root\\SecurityCenter2 Path AntiVirusProduct Get displayName /Format:List"
-        output = Popen(command, stdout=PIPE).stdout.readlines()
+        output = getSubprocess(command)
         
         name = "No Antivirus"
         
@@ -295,21 +341,79 @@ class Information:
             line = line.strip()
             if len(line) > 0:
                 name = line.split("=")[1]
-        log.addLine(name)
+        self.log.addValueToTable("antivirus", name)
+
+class BadDrivers:
+    def __init__(self, log):
+        self.log = log
+        self.log.createTable("drivererrors", "Driver Errors", "device")
     
-    def logBadDrivers(self, log):
+    def logBadDrivers(self):
         """Log all drivers with errors (would show with abnormal icons in device manager)."""
-        
-        log.addTitle("Driver Errors")
-        command = 'wmic /namespace:\\\\root\\cimv2 path win32_PnPEntity where "ConfigManagerErrorCode <> 0" get Caption,DeviceID'
-        output = Popen(command, stdout=PIPE).stdout.readlines()
+
+        command = 'wmic /namespace:\\\\root\\cimv2 path win32_PnPEntity where "ConfigManagerErrorCode <> 0" get Caption'
+        output = getSubprocess(command)
         
         for line in output:
             if len(line.strip()) > 0:
-                log.addLine(line)
-                
+                self.log.addValueToTable("drivererrors", line)
+
+class Information:
+    def __init__(self, log):
+        self.c = wmi.WMI()
+        self.log = log
+        
+    def logProductKeys(self, verbose):
+        if verbose:
+            print "Logging Keys"
+        productkeys = ProductKeys(self.log)
+        productkeys.logKeys()
+        
+    def logPrograms(self, verbose):
+        if verbose:
+            print "Logging Installed Programs"
+        programs = InstalledPrograms(self.log)
+        programs.logPrograms()
+        
+    def logSystemInfo(self, verbose):
+        if verbose:
+            print "Logging System Information"
+        general = GeneralInformation(self.log)
+        general.logSystemInfo()
+            
+    def logFailedServices(self, verbose):
+        if verbose:
+            print "Logging Failed Services"
+        failedservices = FailedServices(self.log)
+        failedservices.logFailedServices()
+        
+    def logEnvironment(self, verbose):
+        if verbose:
+            print "Logging Environment Variables"
+        environment = Environment(self.log)
+        environment.logEnvironment()
+    
+    def logStartup(self, verbose):
+        if verbose:
+            print "Logging Startup Programs"
+        startup = Startup(self.log)
+        startup.logStartup()
+            
+    def logAntivirus(self, verbose):
+        if verbose:
+            print "Logging Registered Antivirus"
+        antivirus = Antivirus(self.log)
+        antivirus.logAntivirus()
+    
+    def logBadDrivers(self, verbose):
+        if verbose:
+            print "Logging Driver Errors"
+        baddrivers = BadDrivers(self.log)
+        baddrivers.logBadDrivers()
+                        
 if __name__ == "__main__":
-    import cleanlog
+    import log
     information = Information()
+
 
     

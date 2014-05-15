@@ -13,8 +13,6 @@ intake [-v] [-s] [-o filename] [-i value1,value2]
 
 -v --verbose        Show all of the information that is logged on screen
                     By default, only the titles of the scans are outputed.
-                   
--s --silent         Don't show any information on screen.
 
 -o --output         Choose a new path to output to output to.
                     The default path is "Logs/%datetime%.txt"
@@ -44,10 +42,3 @@ list (default)      Output file is a plain text file with all information in a
 html (todo)         Output file is an HTML file based on a template html file.
 xml (todo)          Output is a parsable XML file.
 csv (todo)          Output is in a comma seperated value sheet.
-
-Honarable mentions to Nirsoft for ProduKey -- www.nirsoft.net
-
-License
-===========
-
-GNU GPL - v2

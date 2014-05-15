@@ -8,7 +8,8 @@
 # Contributors:
 #     Jeremy Overman - initial API and implementation
 #-------------------------------------------------------------------------------
-import cleanlog, systeminfo
+import systeminfo
+import log
 import sys, time, os
 
 helpmessage = """
@@ -18,8 +19,6 @@ intake [-v] [-s] [-o filename] [-i value1,value2]
 
 -v --verbose        Show all of the information that is logged on screen
                     By default, only the titles of the scans are outputed.
-                   
--s --silent         Don't show any information on screen.
 
 -o --output         Choose a new path to output to output to.
                     The default path is "Logs/%datetime%.txt"
@@ -39,8 +38,6 @@ drivers             Logs all driver errors/warnings
 failedservices      Logs all services that are set to auto start but are not running
 startup             Logs all startup programs listed in msconfig
 environment         Logs all environment variables
-
-Honarable mentions to Nirsoft for ProduKey -- www.nirsoft.net
 """
 
 class Main():
@@ -68,10 +65,10 @@ class Main():
         
         self.time = time.asctime()
         #Use this filename when compiling
-        filename = os.path.join(os.path.dirname(sys.executable), "Logs", "Log - %s.txt" %  self.time.replace(":", "-"))
+        #filename = os.path.join(os.path.dirname(sys.executable), "Logs", "Log - %s.html" %  self.time.replace(":", "-"))
         
         #Use this filename when testing/coding
-        #filename = "Logs/Log - %s.txt" % self.time.replace(":", "-")
+        filename = "Logs/Log - %s.html" % self.time.replace(":", "-")
         
         self.options = {"verbose": False,
                         "output": filename,
@@ -91,7 +88,7 @@ class Main():
         self.scanners = {
                          "general": information.logSystemInfo,
                          "antivirus": information.logAntivirus,
-                         "keys": productkey.logKeys,
+                         "keys": information.logProductKeys,
                          "programs": information.logPrograms,
                          "drivers": information.logBadDrivers,
                          "failedservices": information.logFailedServices,
@@ -144,34 +141,39 @@ class Main():
         """Determines what information should be gathered and logged."""
         
         self.i += 1
-        scans = self.args[self.i]
-        self.options["information"] = []
-        for scan in scans.split(","):
-            self.options["information"].append(scan)
+        try:
+            scans = self.args[self.i]
+            self.options["information"] = []
+            for scan in scans.split(","):
+                if scan in self.scanners:
+                    self.options["information"].append(scan)
+                else:
+                    self.help()
+                    break
+        except IndexError:
+            self.help()
     
     def runScanner(self):
         """Gather and log all requested information."""
         
         for scan in self.options["information"]:
-            try:
-                self.scanners[scan](log)
-            except:
-                #Fail on any errors and report the error, though run the other scans still
-                e = sys.exc_info()[1]
-                print "Scan Failed! [%s]" % e
+            self.scanners[scan](self.options["verbose"])
+            #try:
+            #    self.scanners[scan]()
+            #except:
+            #    #Fail on any errors and report the error, though run the other scans still
+            #    e = sys.exc_info()[1]
+            #    print "Scan Failed! [%s]" % e
         
-        log.writeLog()
+        #log.writeLog()
 
 if __name__ == "__main__":
-    information = systeminfo.Information()
-    productkey = systeminfo.ProductKey()
-    power = systeminfo.powerConfig() #Not working
+    #power = systeminfo.powerConfig() #Not working
     
+    sql = log.SQL()
+    logger = log.Log(sql) 
+    information = systeminfo.Information(sql)
     main = Main()
-    log = cleanlog.Log(
-                       main.options["output"],
-                       main.options["verbose"],
-                       main.options["silent"]
-                       )
     
     main.runScanner()
+    logger.writeLog(main.options["output"])

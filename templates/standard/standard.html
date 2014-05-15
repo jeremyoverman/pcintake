@@ -1,0 +1,29 @@
+<html>
+	<head>
+		<link rel="stylesheet" type="text/css" href="../templates/standard/standard.css">
+	</head>
+	<body>
+		<div id="log">
+			<div id="log_header">
+				<h1 id="company_logo">PCIntake</h1>
+				<span id="customer_name">${customer}</span>
+			</div>
+			<br class="clear" />
+			<div id="log_body">
+			% for table in tables: 
+				<div class="scan_name">${table[0]}</div>
+				<table class="scan_results_table">
+					% for row in table[1]:
+					<tr>
+						<td>${row[0]}</td>
+						% if len(row) > 1:
+						<td>${row[1]}</td>
+						% endif
+					</tr>
+					% endfor
+				</table>
+			% endfor
+			</div>
+		</div>
+	</body>
+</html>

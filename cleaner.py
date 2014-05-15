@@ -9,7 +9,8 @@
 #     Jeremy Overman - initial API and implementation
 #-------------------------------------------------------------------------------
 import platform, os
-import cleanlog, regaccess, programlist
+import regaccess, programlist
+import log
 
 class Clean:
     def __init__(self):
@@ -68,7 +69,7 @@ class Clean:
                 self.deleteDirectoryContents(registry.expandPath(rel_path))
         
 if __name__ == "__main__":
-    log = cleanlog.Log()
+    log = log.Log()
     registry = regaccess.Registry()
     programs = programlist.Programs()
     programs.writeProgramsToLog(log)
