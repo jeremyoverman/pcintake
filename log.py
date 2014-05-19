@@ -9,7 +9,7 @@
 #     Jeremy Overman - initial API and implementation
 #-------------------------------------------------------------------------------
 
-import sqlite3
+import sqlite3, time
 from mako.template import Template
 
 class SQL:
@@ -51,6 +51,14 @@ class SQL:
         result = self.executeSQL("SELECT * FROM %s" % table)
         return result.fetchall()
     
+    def getTableNames(self, table):
+        result = self.executeSQL("SELECT * FROM %s" % table)
+        desc = result.description
+        names = []
+        for col in desc:
+            names.append(col[0][:-5])
+        return names
+    
     def Commit(self):
         self.cur.commit()
 
@@ -68,14 +76,16 @@ class Log:
             data = self.sql.getTable(name)
             self.tables.append((title, data))
     
-    def writeLog(self, output):
-        self.getDatabase()
-        
+    def writeLog(self, output, tables, name):
+        if output.find("{") > -1:
+            strftime = time.strftime(output[output.find("{")+1:output.find("}")])
+            output = output[:output.find("{")] + strftime + output[output.find("}")+1:]
         output_file = open(output, 'w')
         
-        baked = self.mytemplate.render(tables=self.tables)
+        baked = self.mytemplate.render(tables=tables, name=name)
         output_file.write(baked)
         output_file.close()
+        return output
         
 if __name__ == "__main__":
     sql = SQL()

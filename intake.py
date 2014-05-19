@@ -12,6 +12,14 @@ import systeminfo
 import log
 import sys, time, os
 
+version = "0.2"
+description = """
+PCIntake is a program designed to aid
+computer technicians in taking a computer
+in with a little valuable knowledge. This
+program can be used to provide the
+technician with a variety of information."""[1:]
+
 helpmessage = """
 Usage:
 
@@ -43,9 +51,7 @@ environment         Logs all environment variables
 class Main():
     def __init__(self):
         """Sets all of the default options, then parses command line arguments"""
-        
-        self.initOptions()
-        self.initScanners()
+
         self.i = 0
         self.args = sys.argv[1:]
         
@@ -60,6 +66,28 @@ class Main():
         
         self.iterateArguments()
         
+        self.scans = [
+                      ["General Information", "general"],
+                      ["Registered Antivirus", "antivirus"],
+                      ["Product Keys", "keys"],
+                      ["Installed Programs", "programs"],
+                      ["Driver Errors", "drivers"],
+                      ["Failed Services", "failedservices"],
+                      ["Startup Programs", "startup"],
+                      ["Environment Variables", "environment"]
+                      ]
+    def parseOptions(self):
+        f = open("options.conf", 'r')
+        for line in f.readlines():
+            if line[:2] != "//":
+                key = line.split("=")[0]
+                value = line.split("=")[1]
+                if key == "information":
+                    self.information(value)
+                else:
+                    self.options[key] = value.strip()
+        f.close()
+    
     def initOptions(self):
         """Sets the default options as self.options"""
         
@@ -69,21 +97,24 @@ class Main():
         
         #Use this filename when testing/coding
         #filename = "Logs/Log - %s.html" % self.time.replace(":", "-")
-        
-        self.options = {"verbose": False,
-                        "output": filename,
-                        "silent": False,
-                        "information": ["general",
-                                        "antivirus",
-                                        "keys",
-                                        "programs",
-                                        "drivers",
-                                        "failedservices",
-                                        "startup",
-                                        "environment"]
-                       }
+        if os.path.exists("options.conf"):
+            self.options = {}
+            self.parseOptions()
+        else:
+            self.options = {"verbose": False,
+                            "output": filename,
+                            "silent": False,
+                            "information": ["general",
+                                            "antivirus",
+                                            "keys",
+                                            "programs",
+                                            "drivers",
+                                            "failedservices",
+                                            "startup",
+                                            "environment"]
+                           }
     
-    def initScanners(self):
+    def initScanners(self, information):
         """Defines the default information to be gathered and logged."""
         self.scanners = {
                          "general": information.logSystemInfo,
@@ -137,19 +168,16 @@ class Main():
         filename = self.args[self.i]
         self.options["output"] = filename
     
-    def information(self):
+    def information(self, scans=None):
         """Determines what information should be gathered and logged."""
         
         self.i += 1
         try:
-            scans = self.args[self.i]
+            if not scans:
+                scans = self.args[self.i]
             self.options["information"] = []
             for scan in scans.split(","):
-                if scan in self.scanners:
-                    self.options["information"].append(scan)
-                else:
-                    self.help()
-                    break
+                self.options["information"].append(scan)
         except IndexError:
             self.help()
     
@@ -157,22 +185,34 @@ class Main():
         """Gather and log all requested information."""
         
         for scan in self.options["information"]:
-            self.scanners[scan](self.options["verbose"])
-            #try:
-            #    self.scanners[scan]()
-            #except:
-            #    #Fail on any errors and report the error, though run the other scans still
-            #    e = sys.exc_info()[1]
-            #    print "Scan Failed! [%s]" % e
-        
-        #log.writeLog()
+            #self.scanners[scan](self.options["verbose"])
+            try:
+                self.scanners[scan](self.options["verbose"])
+            except:
+                #Fail on any errors and report the error, though run the other scans still
+                e = sys.exc_info()[1]
+                print "Scan Failed! [%s]" % e
+    
+    def iterateScanners(self, scan, sql):
+        self.scanners[scan](self.options["verbose"])
+        sql.tables[-1][2] = sql.getTable(scan)
+        #try:
+        #    self.scanners[scan](self.options["verbose"])
+        #    sql.tables[-1][2] = sql.getTable(scan)
+        #    print sql.tables[-1]
+        #except:
+        #    #Fail on any errors and report the error, though run the other scans still
+        #    e = sys.exc_info()[1]
+        #    print "Scan Failed! [%s]" % e
 
 if __name__ == "__main__":
-    #power = systeminfo.powerConfig() #Not working
-    
     sql = log.SQL()
     logger = log.Log(sql) 
     information = systeminfo.Information(sql)
+    
+    information.initOptions()
+    information.initScanners()
+    
     main = Main()
     
     main.runScanner()

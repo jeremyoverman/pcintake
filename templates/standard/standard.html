@@ -1,28 +1,79 @@
 <html>
 	<head>
-		<link rel="stylesheet" type="text/css" href="../templates/standard/standard.css">
+		<style type="text/css">
+			#log {
+				width: 7.5in;
+				margin-left: auto;
+				margin-right: auto;
+				overflow: hidden;
+			}
+			#company_logo {
+				padding: 0px;
+				margin: 0px;
+				float: left;
+			}
+			#customer_name {
+				padding: 0px;
+				margin: 0px;
+				margin-right: 50px;
+				float: right;
+			}
+			#log_body {
+				margin-top: 25px;
+			}
+			.scan_results_table td {
+				padding-right: .5in;
+				vertical-align: top;
+			}
+			.scan_results_table th {
+				text-align: left;
+				background-color: #dddddd;
+			}
+			.scan_results_table {
+				white-space: pre-wrap;      /* CSS3 */   
+				white-space: -moz-pre-wrap; /* Firefox */    
+				white-space: -pre-wrap;     /* Opera <7 */   
+				white-space: -o-pre-wrap;   /* Opera 7 */    
+				word-wrap: break-word;      /* IE */
+			}
+			.scan_name {
+				size: 26px;
+				font-weight: 800;
+				margin-top: 26px;
+				margin-bottom: 10px;
+			}
+			.clear {
+				clear: both;
+			}
+		</style>
 	</head>
 	<body>
 		<div id="log">
 			<div id="log_header">
 				<h1 id="company_logo">PCIntake</h1>
-				<span id="customer_name"></span>
+				<span id="customer_name">${name}</span>
 			</div>
 			<br class="clear" />
 			<div id="log_body">
 			% for table in tables: 
 				<div class="scan_name">${table[0]}</div>
 				<table class="scan_results_table">
-					% for row in table[1]:
+				% if len(table[1]) > 1: 
+					<tr>
+						<th>${table[1][0]}</th>
+						<th>${table[1][1]}</th>
+					</tr>
+				% endif
+					% for row in table[2]: 
 					<tr>
 						<td>${row[0]}</td>
-						% if len(row) > 1:
+						% if len(row) > 1: 
 						<td>${row[1]}</td>
-						% endif
+						% endif 
 					</tr>
 					% endfor
 				</table>
-			% endfor
+			% endfor 
 			</div>
 		</div>
 	</body>
