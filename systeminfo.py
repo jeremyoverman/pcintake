@@ -1,16 +1,16 @@
-import os, wmi
+import os
 from subprocess import Popen, PIPE
 import regaccess
 
 def getSubprocess(command):
-    proc = Popen(command, stdout=PIPE, stderr=None)#, creationflags=0x08000000)
+    proc = Popen(command, stdout=PIPE, stderr=None)
     output = [''.join([x for x in y if ord(x) < 128]) for y in proc.stdout.readlines()]
     return output
 
 class ProductKeys:
     def __init__(self, log):
         self.log = log
-        self.log.createTable("keys", "Product Keys", "name", "key")
+        self.log.createTable("keys", "Product Keys", "Product Name", "Product Key")
         self.registry = regaccess.Registry()
         
     def DecodeKey(self, rpk):
@@ -193,7 +193,7 @@ class PowerConfig:
 class InstalledPrograms:
     def __init__(self, log):
         self.log = log
-        self.log.createTable("programs", "Installed Programs", "programs")
+        self.log.createTable("programs", "Installed Programs", "Installed Programs")
         
     def logPrograms(self):
         """Log all registered installed programs."""
@@ -210,7 +210,7 @@ class InstalledPrograms:
 class GeneralInformation:
     def __init__(self, log):
         self.log = log
-        self.log.createTable("general", "General Information", "key", "value")
+        self.log.createTable("general", "General Information", "Key", "Value")
     
     def parseSystemInfoCSV(self, csv):
         """Parse the CSV results from the systeminfo.exe command."""
@@ -282,7 +282,7 @@ class GeneralInformation:
 class FailedServices:
     def __init__(self, log):
         self.log = log
-        log.createTable("failedservices", "Failed Services", "service")
+        log.createTable("failedservices", "Failed Services", "Failed Services")
     
     def logFailedServices(self):
         """Log all services that were supposed to automatically start but are not running."""
@@ -297,7 +297,7 @@ class FailedServices:
 class Environment:
     def __init__(self, log):
         self.log = log
-        log.createTable("environment", "Environment Variables", "key", "value")
+        log.createTable("environment", "Environment Variables", "Key", "Value")
     
     def logEnvironment(self):
         """Log all environment variables."""
@@ -312,7 +312,7 @@ class Environment:
 class Startup:
     def __init__(self, log):
         self.log = log
-        self.log.createTable("startup", "Startup Processes", "process")
+        self.log.createTable("startup", "Startup Processes", "Processes")
 
     def logStartup(self):
         """Log all startup programs that show in msconfig.exe."""
@@ -327,7 +327,7 @@ class Startup:
 class Antivirus:
     def __init__(self, log):
         self.log = log
-        self.log.createTable("antivirus", "Registered Antivirus", "antivirus")
+        self.log.createTable("antivirus", "Registered Antivirus", "Registered Antivirus")
 
     def logAntivirus(self):
         """Log the currently registered antivirus program."""
@@ -346,7 +346,7 @@ class Antivirus:
 class BadDrivers:
     def __init__(self, log):
         self.log = log
-        self.log.createTable("drivererrors", "Driver Errors", "device")
+        self.log.createTable("drivers", "Driver Errors", "Driver Errors")
     
     def logBadDrivers(self):
         """Log all drivers with errors (would show with abnormal icons in device manager)."""
@@ -354,13 +354,19 @@ class BadDrivers:
         command = 'wmic /namespace:\\\\root\\cimv2 path win32_PnPEntity where "ConfigManagerErrorCode <> 0" get Caption'
         output = getSubprocess(command)
         
+        baddrivers = []
+        
         for line in output:
             if len(line.strip()) > 0:
-                self.log.addValueToTable("drivererrors", line)
+                baddrivers.append(line)
+        if len(baddrivers) > 0:
+            for driver in baddrivers:
+                self.log.addValueToTable("drivers", driver)
+        else:
+            self.log.addValueToTable("drivers", "No driver errors")
 
 class Information:
     def __init__(self, log):
-        self.c = wmi.WMI()
         self.log = log
         
     def logProductKeys(self, verbose):
@@ -414,6 +420,3 @@ class Information:
 if __name__ == "__main__":
     import log
     information = Information()
-
-
-    
