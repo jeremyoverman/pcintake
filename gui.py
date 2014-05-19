@@ -23,12 +23,15 @@ class Backend:
         i = 0
         for scan in intake.options["information"]:
             wx.CallAfter(gui.services_panel.selectService, scan_index[i])
+            
             intake.iterateScanners(scan, self.sql)
             table, name, data = self.sql.tables[i]
             colnames = self.sql.getTableNames(table)
             self.tables.append([name, colnames, data])
+            
             wx.CallAfter(gui.main_panel.results_notebook.addResultsTab, name, data, colnames)
             i += 1
+            
         self.guiCleanup()
     
     def guiCleanup(self):
@@ -67,9 +70,6 @@ class ResultsGrid(wx.Panel):
         self.grid.Bind(grid.EVT_GRID_CELL_LEFT_DCLICK, self.selectCell)
         
         self.SetSizer(tab_sizer)
-    
-    def OnMotion(self, event):
-        print "moving"
     
     def createGrid(self):
         cols = len(self.table[0])
@@ -120,10 +120,8 @@ class ResultsGrid(wx.Panel):
         gui.PopupMenu(menu, gui.ScreenToClient(wx.GetMousePosition()))
         
     def copyCell(self, event, text):
-        print text
         clipdata = wx.TextDataObject()
         clipdata.SetText(text)
-        print clipdata
         wx.TheClipboard.Open()
         wx.TheClipboard.SetData(clipdata)
         wx.TheClipboard.Flush()
@@ -348,8 +346,6 @@ class GUI(wx.Frame):
                                                  self.menu_bar.file_saveas.GetId())
                                                 ])
         
-        #self.Bind(wx.EVT_MENU, self.handleKeyCombo, id=accel_id)
-        
         self.SetAcceleratorTable(self.accel_table)
     
     def showAbout(self, event=None):
@@ -386,9 +382,6 @@ class GUI(wx.Frame):
                 self.SetStatusText("Saving log...")
                 output_file = file_dialog.GetPath()
                 self.backend.saveLog(output_file)
-            
-            
-        
     
     def saveLog(self, event=None):
         if self.backend:

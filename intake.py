@@ -59,12 +59,8 @@ class Main():
                  "--verbose": self.verbose,
                  "-o": self.output,
                  "-output": self.output,
-                 "-s": self.silent,
-                 "--silent": self.silent,
                  "-i": self.information,
                  "--information": self.information}
-        
-        self.iterateArguments()
         
         self.scans = [
                       ["General Information", "general"],
@@ -76,16 +72,22 @@ class Main():
                       ["Startup Programs", "startup"],
                       ["Environment Variables", "environment"]
                       ]
+        
     def parseOptions(self):
         f = open("options.conf", 'r')
         for line in f.readlines():
-            if line[:2] != "//":
+            if line[:2] != "//" and line.strip() != "":
                 key = line.split("=")[0]
                 value = line.split("=")[1]
                 if key == "information":
-                    self.information(value)
+                    self.information(value.strip())
                 else:
-                    self.options[key] = value.strip()
+                    value = value.strip()
+                    if value == "false":
+                        value = False
+                    elif value == "true":
+                        value = True
+                    self.options[key] = value
         f.close()
     
     def initOptions(self):
@@ -103,7 +105,6 @@ class Main():
         else:
             self.options = {"verbose": False,
                             "output": filename,
-                            "silent": False,
                             "information": ["general",
                                             "antivirus",
                                             "keys",
@@ -181,39 +182,41 @@ class Main():
         except IndexError:
             self.help()
     
-    def runScanner(self):
+    def runScanner(self, sql):
         """Gather and log all requested information."""
         
         for scan in self.options["information"]:
             #self.scanners[scan](self.options["verbose"])
+            #sql.tables[-1][2] = sql.getTable(scan)
             try:
                 self.scanners[scan](self.options["verbose"])
+                sql.tables[-1][2] = sql.getTable(scan)
             except:
                 #Fail on any errors and report the error, though run the other scans still
                 e = sys.exc_info()[1]
                 print "Scan Failed! [%s]" % e
     
     def iterateScanners(self, scan, sql):
-        self.scanners[scan](self.options["verbose"])
-        sql.tables[-1][2] = sql.getTable(scan)
-        #try:
-        #    self.scanners[scan](self.options["verbose"])
-        #    sql.tables[-1][2] = sql.getTable(scan)
-        #    print sql.tables[-1]
-        #except:
-        #    #Fail on any errors and report the error, though run the other scans still
-        #    e = sys.exc_info()[1]
-        #    print "Scan Failed! [%s]" % e
+        #self.scanners[scan](self.options["verbose"])
+        #sql.tables[-1][2] = sql.getTable(scan)
+        try:
+            self.scanners[scan](self.options["verbose"])
+            sql.tables[-1][2] = sql.getTable(scan)
+        except:
+            #Fail on any errors and report the error, though run the other scans still
+            e = sys.exc_info()[1]
+            print "Scan Failed! [%s]" % e
 
 if __name__ == "__main__":
     sql = log.SQL()
     logger = log.Log(sql) 
     information = systeminfo.Information(sql)
     
-    information.initOptions()
-    information.initScanners()
-    
     main = Main()
+    main.initOptions()
+    main.iterateArguments()
+    main.initScanners(information)
     
-    main.runScanner()
+    main.runScanner(sql)
+    
     logger.writeLog(main.options["output"])

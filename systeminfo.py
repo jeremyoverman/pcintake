@@ -420,6 +420,3 @@ class Information:
 if __name__ == "__main__":
     import log
     information = Information()
-
-
-    

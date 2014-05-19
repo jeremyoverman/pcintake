@@ -70,16 +70,19 @@ class Log:
         self.globals = {"customer_name": "Jeremy"}
         
     def getDatabase(self):
-        self.tables = []
+        tables = []
         for table in self.sql.tables:
             name, title, data = table
-            data = self.sql.getTable(name)
-            self.tables.append((title, data))
+            colnames = self.sql.getTableNames(name)
+            tables.append([title, colnames, data])
+        return tables
     
-    def writeLog(self, output, tables, name):
+    def writeLog(self, output, tables=None, name=None):
+        if not tables:
+            tables = self.getDatabase()
         if output.find("{") > -1:
             strftime = time.strftime(output[output.find("{")+1:output.find("}")])
-            output = output[:output.find("{")] + strftime + output[output.find("}")+1:]
+            output = output[:output.find("{")] + strftime + output[output.find("}")+1:]        
         output_file = open(output, 'w')
         
         baked = self.mytemplate.render(tables=tables, name=name)
