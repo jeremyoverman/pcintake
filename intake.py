@@ -8,11 +8,20 @@
 # Contributors:
 #     Jeremy Overman - initial API and implementation
 #-------------------------------------------------------------------------------
-import systeminfo
 import log
 import sys, time, os
 
-version = "0.2"
+import Modules.Antivirus.antivirus as antivirus
+import Modules.EnvironmentVariables.environmentvariables as environmentvariables
+import Modules.FailedDrivers.faileddrivers as faileddrivers
+import Modules.FailedServices.failedservices as failedservices
+import Modules.GeneralInformation.generalinformation as generalinformation
+import Modules.InstalledPrograms.installedprograms as installedprograms
+import Modules.ProductKeys.productkeys as productkeys
+import Modules.StartupPrograms.startupprograms as startupprograms
+import Modules.WEI.wei as wei
+
+version = "0.2.2"
 description = """
 PCIntake is a program designed to aid
 computer technicians in taking a computer
@@ -40,6 +49,7 @@ Possible values for --information:
 
 general             Logs general system information from systeminfo.exe
 antivirus           Logs the currently registered antivirus product
+wei                 Logs Windows Experience Index scores
 keys                Logs all product keys from ProduKey.exe
 programs            Logs all registered installed programs
 drivers             Logs all driver errors/warnings
@@ -53,18 +63,21 @@ class Main():
         """Sets all of the default options, then parses command line arguments"""
 
         self.i = 0
-        self.args = sys.argv[1:]
+        self.args = sys.argv
         
         self.flags = {"-v": self.verbose,
-                 "--verbose": self.verbose,
-                 "-o": self.output,
-                 "-output": self.output,
-                 "-i": self.information,
-                 "--information": self.information}
+                      "--verbose": self.verbose,
+                      "-o": self.output,
+                      "-output": self.output,
+                      "-i": self.information,
+                      "--information": self.information,
+                      "-h": self.help,
+                      "--help": self.help}
         
         self.scans = [
                       ["General Information", "general"],
                       ["Registered Antivirus", "antivirus"],
+                      ["WEI Scores", "wei"],
                       ["Product Keys", "keys"],
                       ["Installed Programs", "programs"],
                       ["Driver Errors", "drivers"],
@@ -95,10 +108,10 @@ class Main():
         
         self.time = time.asctime()
         #Use this filename when compiling
-        filename = os.path.join(os.path.dirname(sys.executable), "Logs", "Log - %s.html" %  self.time.replace(":", "-"))
+        #filename = os.path.join(os.path.dirname(sys.executable), "Logs", "Log - %s.html" %  self.time.replace(":", "-"))
         
         #Use this filename when testing/coding
-        #filename = "Logs/Log - %s.html" % self.time.replace(":", "-")
+        filename = "Logs/Log - %s.html" % self.time.replace(":", "-")
         if os.path.exists("options.conf"):
             self.options = {}
             self.parseOptions()
@@ -107,6 +120,7 @@ class Main():
                             "output": filename,
                             "information": ["general",
                                             "antivirus",
+                                            "wei",
                                             "keys",
                                             "programs",
                                             "drivers",
@@ -115,18 +129,18 @@ class Main():
                                             "environment"]
                            }
     
-    def initScanners(self, information):
+    def initScanners(self):
         """Defines the default information to be gathered and logged."""
         self.scanners = {
-                         "general": information.logSystemInfo,
-                         "antivirus": information.logAntivirus,
-                         "keys": information.logProductKeys,
-                         "programs": information.logPrograms,
-                         "drivers": information.logBadDrivers,
-                         "failedservices": information.logFailedServices,
-                         "startup": information.logStartup,
-                         "environment": information.logEnvironment,
-                         #power.logRules(log)
+                         "general": generalinformation.GeneralInformation,
+                         "antivirus": antivirus.Antivirus,
+                         "wei": wei.WindowsEI,
+                         "keys": productkeys.ProductKeys,
+                         "programs": installedprograms.InstalledPrograms,
+                         "drivers": faileddrivers.BadDrivers,
+                         "failedservices": failedservices.FailedServices,
+                         "startup": startupprograms.Startup,
+                         "environment": environmentvariables.Environment,
                         } 
         
         
@@ -138,7 +152,7 @@ class Main():
         
         while True:
             try: arg = self.args[self.i]
-            except: break
+            except IndexError: break
             if arg in self.flags:
                 command = self.flags[arg]
                 command()
@@ -186,36 +200,37 @@ class Main():
         """Gather and log all requested information."""
         
         for scan in self.options["information"]:
-            #self.scanners[scan](self.options["verbose"])
-            #sql.tables[-1][2] = sql.getTable(scan)
-            try:
-                self.scanners[scan](self.options["verbose"])
-                sql.tables[-1][2] = sql.getTable(scan)
-            except:
-                #Fail on any errors and report the error, though run the other scans still
-                e = sys.exc_info()[1]
-                print "Scan Failed! [%s]" % e
+            obj = self.scanners[scan](sql, self.options["verbose"])
+            obj.log()
+            sql.tables[-1][2] = sql.getTable(scan)
+            #try:
+            #    self.scanners[scan](self.options["verbose"])
+            #    sql.tables[-1][2] = sql.getTable(scan)
+            #except:
+            #    #Fail on any errors and report the error, though run the other scans still
+            #    e = sys.exc_info()[1]
+            #    print "Scan Failed! [%s]" % e
     
     def iterateScanners(self, scan, sql):
-        #self.scanners[scan](self.options["verbose"])
-        #sql.tables[-1][2] = sql.getTable(scan)
-        try:
-            self.scanners[scan](self.options["verbose"])
-            sql.tables[-1][2] = sql.getTable(scan)
-        except:
-            #Fail on any errors and report the error, though run the other scans still
-            e = sys.exc_info()[1]
-            print "Scan Failed! [%s]" % e
+        obj = self.scanners[scan](sql, self.options["verbose"])
+        obj.log()
+        sql.tables[-1][2] = sql.getTable(scan)
+        #try:
+        #    self.scanners[scan](self.options["verbose"])
+        #    sql.tables[-1][2] = sql.getTable(scan)
+        #except:
+        #    #Fail on any errors and report the error, though run the other scans still
+        #    e = sys.exc_info()[1]
+        #    print "Scan Failed! [%s]" % e
 
 if __name__ == "__main__":
     sql = log.SQL()
     logger = log.Log(sql) 
-    information = systeminfo.Information(sql)
     
     main = Main()
     main.initOptions()
     main.iterateArguments()
-    main.initScanners(information)
+    main.initScanners()
     
     main.runScanner(sql)
     

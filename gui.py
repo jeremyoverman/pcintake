@@ -2,7 +2,7 @@ import wx, threading
 import wx.grid as grid
 from wx.lib.stattext import GenStaticText 
 import intake as Intake
-import log, systeminfo
+import log
 
 class Backend:
     def __init__(self):
@@ -12,8 +12,7 @@ class Backend:
         if gui.services_panel.isClear():
             return
         self.sql = log.SQL()
-        information = systeminfo.Information(self.sql)
-        intake.initScanners(information)
+        intake.initScanners()
         
         scan_index = gui.services_panel.list.GetChecked()
         intake.options["information"] = []
