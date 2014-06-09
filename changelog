@@ -5,3 +5,6 @@ Changelog
 
 - (Bug #3) Fixed product keys scan.
 - (Bug #8) Added Windows Experience Index scan
+- Gave each scan its own module/package for easy changes
+- (Bug #7) Added ability for scans to have custom GUI
+- Added custom GUI for WEI scan

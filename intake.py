@@ -132,15 +132,15 @@ class Main():
     def initScanners(self):
         """Defines the default information to be gathered and logged."""
         self.scanners = {
-                         "general": generalinformation.GeneralInformation,
-                         "antivirus": antivirus.Antivirus,
-                         "wei": wei.WindowsEI,
-                         "keys": productkeys.ProductKeys,
-                         "programs": installedprograms.InstalledPrograms,
-                         "drivers": faileddrivers.BadDrivers,
-                         "failedservices": failedservices.FailedServices,
-                         "startup": startupprograms.Startup,
-                         "environment": environmentvariables.Environment,
+                         "general": [generalinformation.GeneralInformation, None],
+                         "antivirus": [antivirus.Antivirus, None],
+                         "wei": [wei.WindowsEI, wei.GUI],
+                         "keys": [productkeys.ProductKeys, None],
+                         "programs": [installedprograms.InstalledPrograms, None],
+                         "drivers": [faileddrivers.BadDrivers, None],
+                         "failedservices": [failedservices.FailedServices, None],
+                         "startup": [startupprograms.Startup, None],
+                         "environment": [environmentvariables.Environment, None],
                         } 
         
         
@@ -200,7 +200,7 @@ class Main():
         """Gather and log all requested information."""
         
         for scan in self.options["information"]:
-            obj = self.scanners[scan](sql, self.options["verbose"])
+            obj = self.scanners[scan][0](sql, self.options["verbose"])
             obj.log()
             sql.tables[-1][2] = sql.getTable(scan)
             #try:
@@ -212,7 +212,7 @@ class Main():
             #    print "Scan Failed! [%s]" % e
     
     def iterateScanners(self, scan, sql):
-        obj = self.scanners[scan](sql, self.options["verbose"])
+        obj = self.scanners[scan][0](sql, self.options["verbose"])
         obj.log()
         sql.tables[-1][2] = sql.getTable(scan)
         #try:

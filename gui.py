@@ -28,7 +28,11 @@ class Backend:
             colnames = self.sql.getTableNames(table)
             self.tables.append([name, colnames, data])
             
-            wx.CallAfter(gui.main_panel.results_notebook.addResultsTab, name, data, colnames)
+            if intake.scanners[scan][1]:
+                wx.CallAfter(gui.main_panel.results_notebook.addCustomResultsTab, scan, name, data, colnames)
+            else:
+                wx.CallAfter(gui.main_panel.results_notebook.addDefaultResultsTab, name, data, colnames)
+            
             i += 1
             
         self.guiCleanup()
@@ -195,8 +199,13 @@ class ResultsNotebook(wx.Notebook):
         self.default_panel.Fit()
         self.AddPage(self.default_panel, "Scan Results")
         
-    def addResultsTab(self, name, table, colnames):
+    def addDefaultResultsTab(self, name, table, colnames):
         results_panel = ResultsGrid(self, table, colnames)
+        self.AddPage(results_panel, name)
+        
+    def addCustomResultsTab(self, scan, name, table, colnames):
+        scan_gui = intake.scanners[scan][1]
+        results_panel = scan_gui(self, table, colnames)
         self.AddPage(results_panel, name)
 
 class ResultsButtons(wx.Panel):
@@ -295,7 +304,7 @@ class MenuBar(wx.MenuBar):
 class GUI(wx.Frame):
     def __init__(self):
         
-        wx.Frame.__init__(self, None, -1, 'PCIntake', size=(640,480))
+        wx.Frame.__init__(self, None, -1, 'PCIntake', size=(800,600))
         
         self.backend = None
         
