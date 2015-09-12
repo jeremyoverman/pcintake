@@ -1,0 +1,7 @@
+/gui.pyc
+/build/*
+/dist/*
+.project
+*.pyc
+.pydevproject
+*.log
